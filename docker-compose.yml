@@ -1,0 +1,39 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  app:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # ADMIN role creates the app DB, schema, RLS, and the app_user role.
+      ADMIN_DATABASE_URL: postgres://postgres:postgres@db:5432/postgres
+      DB_NAME: saas_starter
+      APP_DB_PASSWORD: app_password
+      # APP role (non-superuser) — subject to row-level security.
+      DATABASE_URL: postgres://app_user:app_password@db:5432/saas_starter
+      SESSION_SECRET: change-me-in-production-0000000000000000000000000000000000
+      APP_URL: http://localhost:3000
+      # Leave Stripe vars empty to run in stub mode (no account needed).
+      STRIPE_SECRET_KEY: ""
+      STRIPE_WEBHOOK_SECRET: ""
+    ports:
+      - "3000:3000"
+
+volumes:
+  pgdata:
